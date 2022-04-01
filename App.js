@@ -1,6 +1,9 @@
 import React, { useState } from "react";
-import { Button, Text, View, FlatList, StyleSheet } from "react-native";
+import { Button, FlatList, StyleSheet, Text, TextInput, View } from "react-native";
 import MapView, { Marker } from 'react-native-maps';
+import Geocoder from 'react-native-geocoding';
+
+Geocoder.init("AIzaSyDtvD0iPyPoiy8EP-nRu6yCdAv4hrmBmtI");
 
 const styles = StyleSheet.create({
   kontejner: {
@@ -25,24 +28,56 @@ const styles = StyleSheet.create({
   },
 });
 
+/*
 const seznamMest = [
 //[název města, north/severně, east/východně]
   ['Napajedla', 49.1715583, 17.5119439],
   ['Otrokovice', 49.2099161, 17.5307672],
   ['Staré Město u Uherského Hradiště', 49.0779261, 17.4444222],
   ['Uherské Hradiště', 49.0697497, 17.4596856],
-  ['Uherský Brod', 49.0251300, 17.6471506],
+  ['Uherský Brod', 49.0251300, 17.6471506]
 ];
+*/
+
+var seznamMest = ['Napajedla', 'Otrokovice', 'Staré Město u Uherského Hradiště', 'Uherské Hradiště', 'Uherský Brod'];
 
 const Seznam = () => {
   return (
-    <FlatList
+    <View>
+      <FlatList
         data={seznamMest}
-        renderItem={({item}) => <Text>{item[0]}</Text>}
+        renderItem={({item}) => <Text>{item}</Text>}
         keyExtractor={(item, index) => index.toString()}
       />
+      <TextInput
+        //style={{height: 40}}
+        placeholder="Přidejte město"
+        onSubmitEditing={(newText) => seznamMest.push(newText)}       //nefunguje
+      />
+    </View>
   );
 };
+
+const vytvorMarker = (misto) => {
+  var location;
+  Geocoder.from(misto)
+      .then(json => {
+        location = json.results[0].geometry.location;                 //nefunguje
+        //console.log(location);
+      })
+      .catch(error => console.warn(error));
+
+  return (
+      <Marker
+        coordinate={{
+        latitude: location.latitude,
+        longitude: location.longitude,
+        }}
+        title={misto}
+        keyExtractor={(item, index) => index.toString()}
+      />
+    )
+}
 
 const Mapa = () => {
   return (
@@ -53,16 +88,7 @@ const Mapa = () => {
           latitudeDelta: 0.1,
           longitudeDelta: 0.4,
       }}>
-        {seznamMest.map((value) => (
-          <Marker
-            coordinate={{
-            latitude: value[1],
-            longitude: value[2],
-            }}
-            title={value[0]}
-            keyExtractor={(item, index) => index.toString()}
-          />
-        ))}
+        {seznamMest.map((value) => vytvorMarker(value))}
       </MapView>
   );
 };
