@@ -43,16 +43,17 @@ const Seznam = () => {
         onChangeText={(text) => {setMesto(text)}}
       />
       <Button
-        onPress={() => {seznamMest.push(getMesto);
-                        setMesto('');}}
-        title={'přidej'}
+        onPress={() => {if(getMesto !== '') {
+                          seznamMest.push(getMesto);
+                          setMesto('');}}}
+        title={"přidej"}
       />
     </View>
   );
 };
 
 const vytvorMarker = (misto) => {
-    const [souradnice, setSouradnice] = useState(null);
+  const [souradnice, setSouradnice] = useState({});
 
   Geocoder.init("AIzaSyDtvD0iPyPoiy8EP-nRu6yCdAv4hrmBmtI");
   Geocoder.from(misto)
@@ -61,12 +62,12 @@ const vytvorMarker = (misto) => {
 
   return (
       <Marker
-        coordinate={{
+        /*coordinate={{
         latitude: souradnice.latitude,
         longitude: souradnice.longitude,
-        }}
+        }}*/
+        coordinate={souradnice}
         title={misto}
-        //keyExtractor={(item, index) => index.toString()}
       />
     )
 };
