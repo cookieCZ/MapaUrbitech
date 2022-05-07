@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Button, FlatList, StyleSheet, Text, TextInput, View } from "react-native";
 import MapView, { Marker } from 'react-native-maps';
 import Geocoder from 'react-native-geocoding';
+import SQLite from 'react-native-sqlite-storage';
 
 const styles = StyleSheet.create({
   kontejner: {
@@ -25,15 +26,67 @@ const styles = StyleSheet.create({
   },
 });
 
-const seznamMest = ['Napajedla', 'Otrokovice', 'Staré Město u Uherského Hradiště', 'Uherské Hradiště', 'Uherský Brod'];
+const dataListu = ['Napajedla', 'Otrokovice', 'Staré Město u Uherského Hradiště', 'Uherské Hradiště', 'Uherský Brod'];
+
+const seznamMest = [
+//[název města, latitude, longitude]
+  ['Napajedla', 49.1715583, 17.5119439],
+  ['Otrokovice', 49.2099161, 17.5307672],
+  ['Staré Město u Uherského Hradiště', 49.0779261, 17.4444222],
+  ['Uherské Hradiště', 49.0697497, 17.4596856],
+  ['Uherský Brod', 49.0251300, 17.6471506],
+];
+
+const db = SQLite.openDatabase(
+  {
+    name: 'mesta.db',
+    location: 'default',
+  },
+  () => {},
+  error => {console.log(error)}
+);
+
+const vytvorTabulku = async () => {
+  db.transaction(async (tx) => {
+    tx.executeSql("CREATE TABLE mesto ("
+                  + "ID INTEGER PRIMARY KEY AUTOINCREMENT"
+                  + "nazev VARCHAR(50) NOT NULL"
+                  + "latitude DOUBLE(15, 10) NOT NULL"
+                  + "longitude DOUBLE(15, 10) NOT NULL")
+    seznamMest.forEach(async (value) => {
+      await tx.executeSql("INSERT INTO mesto (nazev, latitude, longitude) VALUES (?, ?, ?)",
+        [value[0], value[1], value[2]]
+      );
+    });
+  });
+};
+
+const vlozMesto = async (mesto) => {
+  const [souradnice, setSouradnice] = useState({});
+
+  dataListu.push(mesto);
+
+  Geocoder.init("AIzaSyDtvD0iPyPoiy8EP-nRu6yCdAv4hrmBmtI");
+  Geocoder.from(mesto)
+      .then(json => {setSouradnice(json.results[0].geometry.location);})
+      .catch(error => console.warn(error));
+
+  db.transaction(async (tx) => {
+    await tx.executeSql("INSERT INTO mesto (nazev, latitude, longitude) VALUES (?, ?, ?)",
+      [mesto, souradnice.latitude, souradnice.longitude]
+    );
+  });
+};
 
 const Seznam = () => {
     const [getMesto, setMesto] = useState('');
 
+    vytvorTabulku();
+
   return (
     <View>
       <FlatList
-        data={seznamMest}
+        data={dataListu}
         renderItem={({item}) => <Text>{item}</Text>}
         keyExtractor={(item, index) => index.toString()}
       />
@@ -44,7 +97,7 @@ const Seznam = () => {
       />
       <Button
         onPress={() => {if(getMesto !== '') {
-                          seznamMest.push(getMesto);
+                          vlozMesto(getMesto);
                           setMesto('');}}}
         title={"přidej"}
       />
@@ -52,24 +105,38 @@ const Seznam = () => {
   );
 };
 
-const vytvorMarker = (misto) => {
-  const [souradnice, setSouradnice] = useState({});
-
-  Geocoder.init("AIzaSyDtvD0iPyPoiy8EP-nRu6yCdAv4hrmBmtI");
-  Geocoder.from(misto)
-      .then(json => {setSouradnice(json.results[0].geometry.location);})       //nefunguje
-      .catch(error => console.warn(error));
+const vytvorMarker = (mesto, latitude, longitude) => {
 
   return (
       <Marker
-        /*coordinate={{
-        latitude: souradnice.latitude,
-        longitude: souradnice.longitude,
-        }}*/
-        coordinate={souradnice}
-        title={misto}
+        coordinate={{
+        latitude: latitude,
+        longitude: longitude,
+        }}
+        title={mesto}
       />
     )
+};
+
+const vytvorMarkery = () => {
+  //const [info, setInfo] = useState({});
+  const markery = [];
+
+  db.transaction((tx) => {
+    tx.executeSql("SELECT mesto, latitude, longitude FROM mesto"),
+    [],
+    (tx, results) => {
+      var delka = results.rows.length;
+      for(var i = 0; i < delka; i++) {
+        var mesto = results.rows.item(i).mesto;
+        var latitude = results.rows.item(i).latitude;
+        var longitude = results.rows.item(i).longitude;
+        markery.push([mesto, latitude, longitude]);
+      }
+    };
+  });
+
+  return markery;
 };
 
 const Mapa = () => {
@@ -81,7 +148,15 @@ const Mapa = () => {
           latitudeDelta: 0.1,
           longitudeDelta: 0.4,
       }}>
-        {seznamMest.map((value) => vytvorMarker(value))}
+        {vytvorMarkery().map((value) => (
+          <Marker
+            coordinate={{
+            latitude: value[1],
+            longitude: value[2],
+            }}
+            title={value[0]}
+          />
+        ))}
       </MapView>
   );
 };
