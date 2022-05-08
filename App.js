@@ -63,7 +63,7 @@ const vytvorTabulku = async () => {
 
 const vlozMesto = async (mesto) => {
   const [souradnice, setSouradnice] = useState({});
-
+  
   dataListu.push(mesto);
 
   Geocoder.init("AIzaSyDtvD0iPyPoiy8EP-nRu6yCdAv4hrmBmtI");
@@ -105,30 +105,16 @@ const Seznam = () => {
   );
 };
 
-const vytvorMarker = (mesto, latitude, longitude) => {
-
-  return (
-      <Marker
-        coordinate={{
-        latitude: latitude,
-        longitude: longitude,
-        }}
-        title={mesto}
-      />
-    )
-};
-
 const vytvorMarkery = () => {
-  //const [info, setInfo] = useState({});
   const markery = [];
 
   db.transaction((tx) => {
-    tx.executeSql("SELECT mesto, latitude, longitude FROM mesto"),
+    tx.executeSql("SELECT nazev, latitude, longitude FROM mesto"),
     [],
     (tx, results) => {
       var delka = results.rows.length;
       for(var i = 0; i < delka; i++) {
-        var mesto = results.rows.item(i).mesto;
+        var mesto = results.rows.item(i).nazev;
         var latitude = results.rows.item(i).latitude;
         var longitude = results.rows.item(i).longitude;
         markery.push([mesto, latitude, longitude]);
@@ -155,6 +141,7 @@ const Mapa = () => {
             longitude: value[2],
             }}
             title={value[0]}
+            keyExtractor={(item, index) => index.toString()}
           />
         ))}
       </MapView>
