@@ -37,6 +37,8 @@ const seznamMest = [
   ['Uherský Brod', 49.0251300, 17.6471506],
 ];
 
+var vytvoreno = false;
+
 const db = SQLite.openDatabase(
   {
     name: 'mesta.db',
@@ -49,10 +51,10 @@ const db = SQLite.openDatabase(
 const vytvorTabulku = async () => {
   db.transaction(async (tx) => {
     tx.executeSql("CREATE TABLE mesto ("
-                  + "ID INTEGER PRIMARY KEY AUTOINCREMENT"
-                  + "nazev VARCHAR(50) NOT NULL"
-                  + "latitude DOUBLE(15, 10) NOT NULL"
-                  + "longitude DOUBLE(15, 10) NOT NULL")
+                  + "ID INTEGER PRIMARY KEY AUTOINCREMENT,"
+                  + "nazev VARCHAR(50) NOT NULL,"
+                  + "latitude DOUBLE(15, 10) NOT NULL,"
+                  + "longitude DOUBLE(15, 10) NOT NULL)")
     seznamMest.forEach(async (value) => {
       await tx.executeSql("INSERT INTO mesto (nazev, latitude, longitude) VALUES (?, ?, ?)",
         [value[0], value[1], value[2]]
@@ -62,18 +64,18 @@ const vytvorTabulku = async () => {
 };
 
 const vlozMesto = async (mesto) => {
-  const [souradnice, setSouradnice] = useState({});
+  var souradnice = {};
   
   dataListu.push(mesto);
 
   Geocoder.init("AIzaSyDtvD0iPyPoiy8EP-nRu6yCdAv4hrmBmtI");
   Geocoder.from(mesto)
-      .then(json => {setSouradnice(json.results[0].geometry.location);})
+      .then(json => {souradnice = json.results[0].geometry.location;})
       .catch(error => console.warn(error));
 
-  db.transaction(async (tx) => {
+  await db.transaction(async (tx) => {
     await tx.executeSql("INSERT INTO mesto (nazev, latitude, longitude) VALUES (?, ?, ?)",
-      [mesto, souradnice.latitude, souradnice.longitude]
+      [mesto, souradnice.lat, souradnice.lng]
     );
   });
 };
@@ -105,11 +107,12 @@ const Seznam = () => {
   );
 };
 
-const vytvorMarkery = () => {
+const vytvorMarkery = async () => {
+  vytvoreno = false;
   const markery = [];
 
-  db.transaction((tx) => {
-    tx.executeSql("SELECT nazev, latitude, longitude FROM mesto"),
+  await db.transaction(async (tx) => {
+    await tx.executeSql("SELECT nazev, latitude, longitude FROM mesto",
     [],
     (tx, results) => {
       var delka = results.rows.length;
@@ -119,32 +122,35 @@ const vytvorMarkery = () => {
         var longitude = results.rows.item(i).longitude;
         markery.push([mesto, latitude, longitude]);
       }
-    };
+    });
   });
 
+  vytvoreno = true;
   return markery;
 };
 
 const Mapa = () => {
+  const poleMarkeru = vytvorMarkery();
+
   return (
-      <MapView style={styles.mapa}
-        initialRegion={{
-          latitude: 49.13,
-          longitude: 17.55,
-          latitudeDelta: 0.1,
-          longitudeDelta: 0.4,
-      }}>
-        {vytvorMarkery().map((value) => (
-          <Marker
-            coordinate={{
+    <MapView style={styles.mapa}
+      initialRegion={{
+        latitude: 49.13,
+        longitude: 17.55,
+        latitudeDelta: 0.1,
+        longitudeDelta: 0.4,
+    }}>
+      {poleMarkeru.map((value) => (
+        <Marker
+          coordinate={{
             latitude: value[1],
             longitude: value[2],
-            }}
-            title={value[0]}
-            keyExtractor={(item, index) => index.toString()}
-          />
-        ))}
-      </MapView>
+          }}
+          title={value[0]}
+          keyExtractor={(item, index) => index.toString()}
+        />
+      ))}
+    </MapView>
   );
 };
 
